@@ -2,17 +2,14 @@ const express = require("express");
 const cors = require("cors");
 const sqlite3 = require("sqlite3").verbose();
 const PDFDocument = require("pdfkit");
-const fs = require("fs");
-const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Middleware
 app.use(express.json());
 app.use(
   cors({
-    origin: ["https://skillindiadigital.org"], // apna frontend URL
+    origin: ["https://skillindiadigital.org"],
     credentials: false,
   })
 );
@@ -26,7 +23,7 @@ const db = new sqlite3.Database("./candidates.db", (err) => {
   }
 });
 
-// Create table if not exists
+// Table
 db.run(`
   CREATE TABLE IF NOT EXISTS candidates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,23 +34,21 @@ db.run(`
   )
 `);
 
-// Example seed data
+// Seed data
 db.run(
   `INSERT OR IGNORE INTO candidates (candidate_id, name, course, date)
    VALUES ('TR440776', 'Shiv Raj Singh', 'Full Stack Development', '2025-09-14')`
 );
 
-// API: Get all candidates
+// API list
 app.get("/api/list", (req, res) => {
   db.all("SELECT * FROM candidates", [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: "Database error" });
-    }
+    if (err) return res.status(500).json({ error: "Database error" });
     res.json(rows);
   });
 });
 
-// API: Generate PDF
+// API generate pdf
 app.get("/api/generate-pdf/:id", (req, res) => {
   const candidateId = req.params.id;
 
@@ -65,30 +60,16 @@ app.get("/api/generate-pdf/:id", (req, res) => {
         return res.status(404).json({ error: "Candidate not found" });
       }
 
-      // PDF file name
       const fileName = `certificate_${candidateId}.pdf`;
       res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
       res.setHeader("Content-Type", "application/pdf");
 
-      // Create PDF
-      const doc = new PDFDocument({ size: "A4", margin: 0 });
+      const doc = new PDFDocument();
       doc.pipe(res);
 
-      // Background image (root me)
-      const bgPath = path.join(__dirname, "certificate-bg.jpg");
-      if (fs.existsSync(bgPath)) {
-        doc.image(bgPath, 0, 0, {
-          width: doc.page.width,
-          height: doc.page.height,
-        });
-      } else {
-        console.log("⚠️ certificate-bg.jpg missing, PDF plain banega...");
-      }
-
-      // Certificate text
+      // Certificate text only
       doc.fontSize(26).fillColor("#000").text("Certificate of Completion", {
         align: "center",
-        valign: "center",
       });
 
       doc.moveDown(2);
@@ -104,7 +85,6 @@ app.get("/api/generate-pdf/:id", (req, res) => {
       doc.moveDown(2);
       doc.fontSize(14).text(`Date: ${row.date}`, { align: "center" });
 
-      // End PDF
       doc.end();
     }
   );
