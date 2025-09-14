@@ -10,7 +10,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const cors = require('cors');
-app.use(cors({ origin: ['https:https://skillindiadigital.org/'], credentials: false }));
+app.use(cors({ origin: ['https://skillindiadigital.org/'], credentials: false }));
 
 
 const app = express();
