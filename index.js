@@ -9,6 +9,10 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const crypto = require('crypto');
 
+const cors = require('cors');
+app.use(cors({ origin: ['https:https://skillindiadigital.org/'], credentials: false }));
+
+
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
