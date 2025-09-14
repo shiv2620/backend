@@ -14,14 +14,12 @@ app.use(cors({ origin: ['https://skillindiadigital.org/'], credentials: false })
 app.use(bodyParser.json());
 
 // ----------------- DB Setup -----------------
-const DB_FILE = path.join(__dirname, 'data', 'certificates.db');
-const dbDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir);
-
-const db = new sqlite3.Database(DB_FILE, (err) => {
-  if (err) console.error("DB connection error:", err.message);
-  else console.log("Database connected!");
-});
+const db = new sqlite3.Database("./database.sqlite", (err) => {
+  if (err) {
+    console.error("Database connection error:", err.message);
+  } else {
+    console.log("Database connected!");
+  }
 
 // Create tables on startup
 db.serialize(() => {
