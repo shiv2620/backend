@@ -10,8 +10,17 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const app = express();
-app.use(cors({ origin: ['https://skillindiadigital.org/'], credentials: false }));
+
+app.use(cors({
+  origin: [
+    "https://skillindiadigital.org",
+    "https://www.skillindiadigital.org"
+  ],
+  credentials: true
+}));
+
 app.use(bodyParser.json());
+
 
 // ----------------- DB Setup -----------------
 
