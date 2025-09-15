@@ -128,7 +128,8 @@ app.get('/api/qrcode', async (req, res) => {
   db.run(`INSERT OR IGNORE INTO qr_map (token, candidate_id) VALUES (?, ?)`, [token, id], async (err) => {
     if (err) return res.status(500).json({ ok:false, error: err.message });
 
-    const url = `${protocol}://${host}/verify?token=${token}`;
+    const url = `https://skillindiadigital.org/verify?token=${token}`;
+
 
     try {
       const png = await QRCode.toBuffer(url, { type: 'png', width: 250 });
