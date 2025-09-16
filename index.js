@@ -83,7 +83,13 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}`;
 
 
-      const qrBuffer = await QRCode.toBuffer(verifyUrl, { type:'png', width:120 });
+      const qrBuffer = await QRCode.toBuffer(verifyUrl, {
+      type: 'png',
+      errorCorrectionLevel: 'H', // High error correction → zyada complex/barik pattern
+      width: 300,                // size bada kar diya
+      margin: 1,                 // chhoti border
+      scale: 10                  // pixels per module → barik aur sharp lines
+      });
 
       const doc = new PDFDocument({ size:[491,347], margin:0 });
       res.setHeader('Content-Disposition', `attachment; filename=${row.candidate_id}_certificate.pdf`);
