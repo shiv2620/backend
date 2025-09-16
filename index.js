@@ -80,18 +80,19 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       db.run(`INSERT OR IGNORE INTO qr_map (token, candidate_id) VALUES (?, ?)`, [token, id]);
 
       // ✅ Corrected QR code URL
-      // ✅ Long descriptive URL
-    const verifyUrl =
-    `https://admin.skillindiadigital.gov.in/documentverificationbyQR?` +
-    `Candidate%20Name=${encodeURIComponent(row.name)}` +
-    `&Candidate%20ID=${encodeURIComponent(row.candidate_id)}` +
-    `&Sector%20Name=${encodeURIComponent(row.sector)}` +
-    `&QP%20Name=${encodeURIComponent(row.job_role)}` +
-    `&QP%20Code=${encodeURIComponent(row.qp_code)}` +
-    `&Grade=${encodeURIComponent(row.grade)}` +
-    `&Valid%20Till%20Date=${encodeURIComponent(row.expiry_date)}` +
-    `&Candidate%2FApplicant%20type=Trainer` +
-    `&Document=certificate`;
+      const verifyUrl = new URL("https://skillindiadigital.org/documentverificationbyQR");
+
+      verifyUrl.searchParams.set("Candidate Name", row.name);
+      verifyUrl.searchParams.set("Candidate ID", row.candidate_id);
+      verifyUrl.searchParams.set("Sector Name", row.sector);
+      verifyUrl.searchParams.set("QP Name", row.job_role);
+      verifyUrl.searchParams.set("QP Code", row.qp_code);
+      verifyUrl.searchParams.set("Grade", row.grade);
+      verifyUrl.searchParams.set("Valid Till Date", row.expiry_date);
+      verifyUrl.searchParams.set("Candidate/Applicant type", "Trainer");
+      verifyUrl.searchParams.set("Document", "certificate");
+
+      const finalUrl = verifyUrl.toString();
 
       const qrBuffer = await QRCode.toBuffer(verifyUrl, {
       type: 'png',
