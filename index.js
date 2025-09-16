@@ -87,7 +87,7 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
         type: 'png',
         errorCorrectionLevel: 'Q',
         width: 400,
-        version: 22,
+        version: 15,
         margin: 3,
         scale: 5
       });
