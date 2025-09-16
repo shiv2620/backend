@@ -1,3 +1,73 @@
+// server/index.js
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+const QRCode = require('qrcode');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const crypto = require('crypto');
+
+// ------------------ EXPRESS APP ------------------
+const app = express();
+
+// ------------------ CORS ------------------
+app.use(cors({
+  origin: [
+    "https://skillindiadigital.org",
+    "https://www.skillindiadigital.org"
+  ],
+  credentials: true
+}));
+
+app.use(bodyParser.json());
+
+// ------------------ DATABASE ------------------
+const db = new sqlite3.Database("database.sqlite", (err) => {
+  if (err) console.error(err.message);
+  else console.log("Database connected!");
+});
+
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS candidates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    candidate_id TEXT UNIQUE,
+    name TEXT,
+    father_name TEXT,
+    aadhar TEXT,
+    sector TEXT,
+    qp_code TEXT,
+    qp_version TEXT,
+    job_role TEXT,
+    grade TEXT,
+    issue_date TEXT,
+    expiry_date TEXT,
+    document_id TEXT
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS qr_map (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT UNIQUE,
+    candidate_id TEXT
+  )`);
+});
+
+// ------------------ API ROUTES ------------------
+
+// Add candidate
+app.post('/api/add', (req, res) => {
+  const p = req.body;
+  const fields = ['candidate_id','name','father_name','aadhar','sector','qp_code',
+                  'qp_version','job_role','grade','issue_date','expiry_date','document_id'];
+  const vals = fields.map(f => p[f] || '');
+  db.run(`INSERT OR REPLACE INTO candidates (${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,
+    vals, function(err) {
+      if(err) return res.status(500).json({ ok:false, error: err.message });
+      res.json({ ok:true, id: this.lastID });
+  });
+});
+
 // Generate PDF with QR
 app.get('/api/generate-pdf/:id', async (req, res) => {
   const id = req.params.id;
