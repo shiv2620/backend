@@ -1,72 +1,3 @@
-// server/index.js
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const QRCode = require('qrcode');
-const PDFDocument = require('pdfkit');
-const fs = require('fs');
-const crypto = require('crypto');
-
-const app = express();
-
-// ------------------ CORS ------------------
-app.use(cors({
-  origin: [
-    "https://skillindiadigital.org",
-    "https://www.skillindiadigital.org"
-  ],
-  credentials: true
-}));
-
-app.use(bodyParser.json());
-
-// ------------------ DB ------------------
-const db = new sqlite3.Database("database.sqlite", (err) => {
-  if (err) console.error(err.message);
-  else console.log("Database connected!");
-});
-
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS candidates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    candidate_id TEXT UNIQUE,
-    name TEXT,
-    father_name TEXT,
-    aadhar TEXT,
-    sector TEXT,
-    qp_code TEXT,
-    qp_version TEXT,
-    job_role TEXT,
-    grade TEXT,
-    issue_date TEXT,
-    expiry_date TEXT,
-    document_id TEXT
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS qr_map (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    token TEXT UNIQUE,
-    candidate_id TEXT
-  )`);
-});
-
-// ------------------ API ------------------
-
-// Add candidate
-app.post('/api/add', (req, res) => {
-  const p = req.body;
-  const fields = ['candidate_id','name','father_name','aadhar','sector','qp_code',
-                  'qp_version','job_role','grade','issue_date','expiry_date','document_id'];
-  const vals = fields.map(f => p[f] || '');
-  db.run(`INSERT OR REPLACE INTO candidates (${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,
-    vals, function(err) {
-      if(err) return res.status(500).json({ ok:false, error: err.message });
-      res.json({ ok:true, id: this.lastID });  // ✅ Always return JSON
-  });
-});
-
 // Generate PDF with QR
 app.get('/api/generate-pdf/:id', async (req, res) => {
   const id = req.params.id;
@@ -78,7 +9,9 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       const token = crypto.randomBytes(8).toString('hex');
       db.run(`INSERT OR IGNORE INTO qr_map (token, candidate_id) VALUES (?, ?)`, [token, id]);
 
-      const verifyUrl = `https://skillindiadigital.org/verify?id=${encodeURIComponent(id)}`;
+      // ✅ Updated QR code URL to match React Router /verify/:id
+      const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}`;
+
       const qrBuffer = await QRCode.toBuffer(verifyUrl, { type:'png', width:120 });
 
       const doc = new PDFDocument({ size:[491,347], margin:0 });
@@ -102,22 +35,3 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
     }
   });
 });
-
-// Verify page API
-app.get('/api/verify', (req, res) => {
-  const { id, token } = req.query;
-  if(!id && !token) return res.status(400).json({ ok:false, error:'Provide id or token' });
-
-  const cb = (err,row) => {
-    if(err) return res.status(500).json({ ok:false, error: err.message });
-    if(!row) return res.status(404).json({ ok:false, error:'Not found' });
-    res.json({ ok:true, data: row });
-  };
-
-  if(id) db.get(`SELECT * FROM candidates WHERE candidate_id=? LIMIT 1`, [id], cb);
-  else db.get(`SELECT c.* FROM qr_map q JOIN candidates c ON q.candidate_id=c.candidate_id WHERE q.token=? LIMIT 1`, [token], cb);
-});
-
-// ------------------ Start ------------------
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, ()=>console.log('Backend running on port', PORT));
