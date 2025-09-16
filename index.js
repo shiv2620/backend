@@ -80,7 +80,8 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       db.run(`INSERT OR IGNORE INTO qr_map (token, candidate_id) VALUES (?, ?)`, [token, id]);
 
       // ✅ Corrected QR code URL
-      const verifyUrl = `https://skillindiadigital.org/#/verify/${encodeURIComponent(id)}`;
+      const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}`;
+
 
       const qrBuffer = await QRCode.toBuffer(verifyUrl, { type:'png', width:120 });
 
