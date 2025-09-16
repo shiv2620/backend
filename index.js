@@ -122,3 +122,22 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
     }
   });
 });
+
+// Verify API
+app.get('/api/verify', (req, res) => {
+  const { id, token } = req.query;
+  if(!id && !token) return res.status(400).json({ ok:false, error:'Provide id or token' });
+
+  const cb = (err,row) => {
+    if(err) return res.status(500).json({ ok:false, error: err.message });
+    if(!row) return res.status(404).json({ ok:false, error:'Not found' });
+    res.json({ ok:true, data: row });
+  };
+
+  if(id) db.get(`SELECT * FROM candidates WHERE candidate_id=? LIMIT 1`, [id], cb);
+  else db.get(`SELECT c.* FROM qr_map q JOIN candidates c ON q.candidate_id=c.candidate_id WHERE q.token=? LIMIT 1`, [token], cb);
+});
+
+// ------------------ START SERVER ------------------
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, ()=>console.log('Backend running on port', PORT));
