@@ -86,9 +86,10 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       const qrBuffer = await QRCode.toBuffer(verifyUrl, {
       type: 'png',
       errorCorrectionLevel: 'H', // High error correction → zyada complex/barik pattern
-      width: 300,                // size bada kar diya
-      margin: 1,                 // chhoti border
-      scale: 10                  // pixels per module → barik aur sharp lines
+      width: 400,                // size bada kar diya
+      version: 15,
+      margin: 2,                 // chhoti border
+      scale: 2,                  // pixels per module → barik aur sharp lines
       });
 
       const doc = new PDFDocument({ size:[491,347], margin:0 });
