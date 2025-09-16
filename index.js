@@ -80,17 +80,19 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       db.run(`INSERT OR IGNORE INTO qr_map (token, candidate_id) VALUES (?, ?)`, [token, id]);
 
       // ✅ Corrected QR code URL
-      const verifyUrl = https://skillindiadigital.org/verify/${encodeURIComponent(id)};
-
-      const qrBuffer = await QRCode.toBuffer(verifyUrl, {
-      type: 'png',
-      errorCorrectionLevel: 'Q', // High error correction → zyada complex/barik pattern
-      width: 400,                // size bada kar diya
-      version: 15,
-      margin: 3,                 // chhoti border
-      scale: 5,                  // pixels per module → barik aur sharp lines
+      const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}`;
+      
+       // ✅ Final URL string pass karo, object nahi
+      const qrBuffer = await QRCode.toBuffer(finalUrl, {
+        type: 'png',
+        errorCorrectionLevel: 'Q',
+        width: 400,
+        version: 15,
+        margin: 3,
+        scale: 5
       });
-
+      
+      
       const doc = new PDFDocument({ size:[491,347], margin:0 });
       res.setHeader('Content-Disposition', `attachment; filename=${row.candidate_id}_certificate.pdf`);
       res.setHeader('Content-Type','application/pdf');
