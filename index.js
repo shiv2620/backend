@@ -79,10 +79,22 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       const token = crypto.randomBytes(8).toString('hex');
       db.run(`INSERT OR IGNORE INTO qr_map (token, candidate_id) VALUES (?, ?)`, [token, id]);
 
-      // ✅ Corrected QR code URL
-      const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}`;
-      
-       // ✅ Final URL string pass karo, object nahi
+      // ✅ Full URL with query parameters
+      const queryString = new URLSearchParams({
+        "Candidate Name": row.name,
+        "Candidate ID": row.candidate_id,
+        "Sector Name": row.sector,
+        "QP Name": row.job_role,
+        "QP Code": row.qp_code,
+        "Grade": row.grade,
+        "Valid Till Date": row.expiry_date,
+        "Candidate/Applicant type": "Trainer",
+        "Document": row.document_id || "certificate"
+      }).toString();
+
+      const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}?${queryString}`;
+
+      // QR code buffer
       const qrBuffer = await QRCode.toBuffer(verifyUrl, {
         type: 'png',
         errorCorrectionLevel: 'Q',
@@ -91,8 +103,8 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
         margin: 3,
         scale: 5
       });
-      
-      
+
+      // PDF generation
       const doc = new PDFDocument({ size:[491,347], margin:0 });
       res.setHeader('Content-Disposition', `attachment; filename=${row.candidate_id}_certificate.pdf`);
       res.setHeader('Content-Type','application/pdf');
@@ -127,6 +139,31 @@ app.get('/api/verify', (req, res) => {
 
   if(id) db.get(`SELECT * FROM candidates WHERE candidate_id=? LIMIT 1`, [id], cb);
   else db.get(`SELECT c.* FROM qr_map q JOIN candidates c ON q.candidate_id=c.candidate_id WHERE q.token=? LIMIT 1`, [token], cb);
+});
+
+// ✅ Get full URL with query parameters
+app.get('/api/getFullUrl/:id', (req, res) => {
+    const id = req.params.id;
+    db.get(`SELECT * FROM candidates WHERE candidate_id=? LIMIT 1`, [id], (err, row) => {
+        if(err) return res.status(500).json({ ok:false, error: err.message });
+        if(!row) return res.status(404).json({ ok:false, error:'Candidate not found' });
+
+        const queryString = new URLSearchParams({
+            "Candidate Name": row.name,
+            "Candidate ID": row.candidate_id,
+            "Sector Name": row.sector,
+            "QP Name": row.job_role,
+            "QP Code": row.qp_code,
+            "Grade": row.grade,
+            "Valid Till Date": row.expiry_date,
+            "Candidate/Applicant type": "Trainer",
+            "Document": row.document_id || "certificate"
+        }).toString();
+
+        const fullUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}?${queryString}`;
+
+        res.json({ ok:true, url: fullUrl });
+    });
 });
 
 // ------------------ START SERVER ------------------
