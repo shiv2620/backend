@@ -80,16 +80,26 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       db.run(`INSERT OR IGNORE INTO qr_map (token, candidate_id) VALUES (?, ?)`, [token, id]);
 
       // ✅ Corrected QR code URL
-      const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}`;
-
+      // ✅ Long descriptive URL
+    const verifyUrl =
+    `https://admin.skillindiadigital.gov.in/documentverificationbyQR?` +
+    `Candidate%20Name=${encodeURIComponent(row.name)}` +
+    `&Candidate%20ID=${encodeURIComponent(row.candidate_id)}` +
+    `&Sector%20Name=${encodeURIComponent(row.sector)}` +
+    `&QP%20Name=${encodeURIComponent(row.job_role)}` +
+    `&QP%20Code=${encodeURIComponent(row.qp_code)}` +
+    `&Grade=${encodeURIComponent(row.grade)}` +
+    `&Valid%20Till%20Date=${encodeURIComponent(row.expiry_date)}` +
+    `&Candidate%2FApplicant%20type=Trainer` +
+    `&Document=certificate`;
 
       const qrBuffer = await QRCode.toBuffer(verifyUrl, {
       type: 'png',
-      errorCorrectionLevel: 'H', // High error correction → zyada complex/barik pattern
+      errorCorrectionLevel: 'Q', // High error correction → zyada complex/barik pattern
       width: 400,                // size bada kar diya
-      version: 15,
-      margin: 2,                 // chhoti border
-      scale: 2,                  // pixels per module → barik aur sharp lines
+      version: 22,
+      margin: 3,                 // chhoti border
+      scale: 5,                  // pixels per module → barik aur sharp lines
       });
 
       const doc = new PDFDocument({ size:[491,347], margin:0 });
