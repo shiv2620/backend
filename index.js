@@ -83,7 +83,7 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}`;
       
        // ✅ Final URL string pass karo, object nahi
-      const qrBuffer = await QRCode.toBuffer(finalUrl, {
+      const qrBuffer = await QRCode.toBuffer(verifyUrl, {
         type: 'png',
         errorCorrectionLevel: 'Q',
         width: 400,
