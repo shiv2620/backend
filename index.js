@@ -82,7 +82,6 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       // ✅ Corrected QR code URL
       const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}`;
 
-
       const qrBuffer = await QRCode.toBuffer(verifyUrl, { type:'png', width:120 });
 
       const doc = new PDFDocument({ size:[491,347], margin:0 });
@@ -106,7 +105,7 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
   });
 });
 
-// Verify API
+// Verify API (query string version)
 app.get('/api/verify', (req, res) => {
   const { id, token } = req.query;
   if(!id && !token) return res.status(400).json({ ok:false, error:'Provide id or token' });
@@ -119,6 +118,17 @@ app.get('/api/verify', (req, res) => {
 
   if(id) db.get(`SELECT * FROM candidates WHERE candidate_id=? LIMIT 1`, [id], cb);
   else db.get(`SELECT c.* FROM qr_map q JOIN candidates c ON q.candidate_id=c.candidate_id WHERE q.token=? LIMIT 1`, [token], cb);
+});
+
+// ✅ Verify API (path param version)
+app.get('/api/verify/:id', (req, res) => {
+  const id = req.params.id;
+
+  db.get(`SELECT * FROM candidates WHERE candidate_id=? LIMIT 1`, [id], (err, row) => {
+    if(err) return res.status(500).json({ ok:false, error: err.message });
+    if(!row) return res.status(404).json({ ok:false, error:'Not found' });
+    res.json({ ok:true, data: row });
+  });
 });
 
 // ------------------ START SERVER ------------------
