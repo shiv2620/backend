@@ -97,7 +97,7 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       type: 'png',
       errorCorrectionLevel: 'Q', // High error correction → zyada complex/barik pattern
       width: 400,                // size bada kar diya
-      version: 22,
+      version: 10,
       margin: 3,                 // chhoti border
       scale: 5,                  // pixels per module → barik aur sharp lines
       });
