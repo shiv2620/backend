@@ -1,4 +1,3 @@
-// server/index.js
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -9,10 +8,8 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const crypto = require('crypto');
 
-// ------------------ EXPRESS APP ------------------
 const app = express();
 
-// ------------------ CORS ------------------
 app.use(cors({
   origin: [
     "https://skillindiadigital.org",
@@ -61,17 +58,28 @@ app.post('/api/add', (req, res) => {
   const fields = ['candidate_id','name','father_name','aadhar','sector','qp_code',
                   'qp_version','job_role','grade','issue_date','expiry_date','document_id'];
   const vals = fields.map(f => p[f] || '');
-  db.run(`INSERT OR REPLACE INTO candidates (${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,
-    vals, function(err) {
+  db.run(
+    `INSERT OR REPLACE INTO candidates (${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,
+    vals,
+    function(err) {
       if(err) return res.status(500).json({ ok:false, error: err.message });
       res.json({ ok:true, id: this.lastID });
+    }
+  );
+});
+
+// List all candidates
+app.get('/api/list', (req, res) => {
+  db.all(`SELECT * FROM candidates ORDER BY id DESC`, (err, rows) => {
+    if(err) return res.status(500).json({ ok:false, error: err.message });
+    res.json({ ok:true, data: rows });
   });
 });
 
 // Generate PDF with QR
 app.get('/api/generate-pdf/:id', async (req, res) => {
   const id = req.params.id;
-  db.get(`SELECT * FROM candidates WHERE candidate_id=? LIMIT 1`, [id], async (err, row) => {
+  db.get(`SELECT * FROM candidates WHERE candidate_id=? COLLATE NOCASE LIMIT 1`, [id], async (err, row) => {
     if(err) return res.status(500).json({ error: err.message });
     if(!row) return res.status(404).json({ error: 'Candidate not found' });
 
@@ -79,22 +87,20 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       const token = crypto.randomBytes(8).toString('hex');
       db.run(`INSERT OR IGNORE INTO qr_map (token, candidate_id) VALUES (?, ?)`, [token, id]);
 
-      // ✅ Full URL with query parameters
-const queryString = new URLSearchParams({
-  CandidateName: row.name,
-  CandidateID: row.candidate_id,
-  SectorName: row.sector,
-  QPName: row.job_role,
-  QPCode: row.qp_code,
-  Grade: row.grade,
-  ValidTillDate: row.expiry_date,
-  ApplicantType: "Trainer",
-  Document: row.document_id || "certificate"
-}).toString();
+      const queryString = new URLSearchParams({
+        CandidateName: row.name,
+        CandidateID: row.candidate_id,
+        SectorName: row.sector,
+        QPName: row.job_role,
+        QPCode: row.qp_code,
+        Grade: row.grade,
+        ValidTillDate: row.expiry_date,
+        ApplicantType: "Trainer",
+        Document: row.document_id || "certificate"
+      }).toString();
 
-const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}?${queryString}`;
+      const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}?${queryString}`;
 
-      // QR code buffer
       const qrBuffer = await QRCode.toBuffer(verifyUrl, {
         type: 'png',
         errorCorrectionLevel: 'Q',
@@ -104,7 +110,6 @@ const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)
         scale: 5
       });
 
-      // PDF generation
       const doc = new PDFDocument({ size:[491,347], margin:0 });
       res.setHeader('Content-Disposition', `attachment; filename=${row.candidate_id}_certificate.pdf`);
       res.setHeader('Content-Type','application/pdf');
@@ -133,37 +138,47 @@ app.get('/api/verify', (req, res) => {
 
   const cb = (err,row) => {
     if(err) return res.status(500).json({ ok:false, error: err.message });
-    if(!row) return res.status(404).json({ ok:false, error:'Not found' });
+    if(!row) return res.status(404).json({ ok:false, error:'Candidate not found' });
     res.json({ ok:true, data: row });
   };
 
-  if(id) db.get(`SELECT * FROM candidates WHERE candidate_id=? LIMIT 1`, [id], cb);
-  else db.get(`SELECT c.* FROM qr_map q JOIN candidates c ON q.candidate_id=c.candidate_id WHERE q.token=? LIMIT 1`, [token], cb);
+  if(id) {
+    const cleanId = id.trim();
+    db.get(`SELECT * FROM candidates WHERE candidate_id=? COLLATE NOCASE LIMIT 1`, [cleanId], cb);
+  } else if(token) {
+    const cleanToken = token.trim();
+    db.get(`
+      SELECT c.* 
+      FROM qr_map q 
+      JOIN candidates c ON q.candidate_id=c.candidate_id 
+      WHERE q.token=? 
+      LIMIT 1
+    `, [cleanToken], cb);
+  }
 });
 
-// ✅ Get full URL with query parameters
+// Get full URL with query parameters
 app.get('/api/getFullUrl/:id', (req, res) => {
-    const id = req.params.id;
-    db.get(`SELECT * FROM candidates WHERE candidate_id=? LIMIT 1`, [id], (err, row) => {
-        if(err) return res.status(500).json({ ok:false, error: err.message });
-        if(!row) return res.status(404).json({ ok:false, error:'Candidate not found' });
+  const id = req.params.id;
+  db.get(`SELECT * FROM candidates WHERE candidate_id=? COLLATE NOCASE LIMIT 1`, [id], (err, row) => {
+    if(err) return res.status(500).json({ ok:false, error: err.message });
+    if(!row) return res.status(404).json({ ok:false, error:'Candidate not found' });
 
-        const queryString = new URLSearchParams({
-            "Candidate Name": row.name,
-            "Candidate ID": row.candidate_id,
-            "Sector Name": row.sector,
-            "QP Name": row.job_role,
-            "QP Code": row.qp_code,
-            "Grade": row.grade,
-            "Valid Till Date": row.expiry_date,
-            "Candidate/Applicant type": "Trainer",
-            "Document": row.document_id || "certificate"
-        }).toString();
+    const queryString = new URLSearchParams({
+      "Candidate Name": row.name,
+      "Candidate ID": row.candidate_id,
+      "Sector Name": row.sector,
+      "QP Name": row.job_role,
+      "QP Code": row.qp_code,
+      "Grade": row.grade,
+      "Valid Till Date": row.expiry_date,
+      "Candidate/Applicant type": "Trainer",
+      "Document": row.document_id || "certificate"
+    }).toString();
 
-        const fullUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}?${queryString}`;
-
-        res.json({ ok:true, url: fullUrl });
-    });
+    const fullUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}?${queryString}`;
+    res.json({ ok:true, url: fullUrl });
+  });
 });
 
 // ------------------ START SERVER ------------------
