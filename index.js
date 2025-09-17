@@ -166,14 +166,6 @@ app.get('/api/getFullUrl/:id', (req, res) => {
     });
 });
 
-app.get('/api/list', (req, res) => {
-  db.all(`SELECT * FROM candidates`, (err, rows) => {
-    if(err) return res.status(500).json({ ok:false, error: err.message });
-    res.json({ ok:true, data: rows });
-  });
-});
-
-
 // ------------------ START SERVER ------------------
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, ()=>console.log('Backend running on port', PORT));
