@@ -166,11 +166,6 @@ app.get('/api/getFullUrl/:id', (req, res) => {
     });
 });
 
-// ❌ Block root for public
-app.get('/', (req, res) => {
-  res.status(403).send("Access Denied");
-});
-
 
 // ------------------ START SERVER ------------------
 const PORT = process.env.PORT || 5000;
