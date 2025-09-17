@@ -1,3 +1,5 @@
+require('dotenv').config(); // dotenv load
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -22,7 +24,7 @@ app.use(bodyParser.json());
 // ------------------ DATABASE (PostgreSQL) ------------------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }   // Render ke liye SSL required hota hai
+  ssl: { rejectUnauthorized: false }
 });
 
 (async () => {
@@ -142,7 +144,7 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
     res.setHeader('Content-Type','application/pdf');
     doc.pipe(res);
 
-    const bgPath = path.join(__dirname,'certificate-bg.jpg');
+    const bgPath = path.resolve(__dirname,'public/certificate-bg.jpg');
     doc.image(bgPath,0,0,{width:doc.page.width,height:doc.page.height});
 
     doc.font('Times-Bold').fontSize(28).text(row.name,0,20,{align:'center'});
