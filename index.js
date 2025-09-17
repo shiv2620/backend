@@ -81,14 +81,14 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
 
       // ✅ Full URL with query parameters
       const queryString = new URLSearchParams({
-        "Candidate Name": row.name,
-        "Candidate ID": row.candidate_id,
-        "Sector Name": row.sector,
-        "QP Name": row.job_role,
-        "QP Code": row.qp_code,
+        "CandidateName": row.name,
+        "CandidateID": row.candidate_id,
+        "SectorName": row.sector,
+        "QPName": row.job_role,
+        "QPCode": row.qp_code,
         "Grade": row.grade,
-        "Valid Till Date": row.expiry_date,
-        "Candidate/Applicant type": "Trainer",
+        "ValidTillDate": row.expiry_date,
+        "Candidate/Applicanttype": "Trainer",
         "Document": row.document_id || "certificate"
       }).toString();
 
