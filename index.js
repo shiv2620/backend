@@ -80,19 +80,19 @@ app.get('/api/generate-pdf/:id', async (req, res) => {
       db.run(`INSERT OR IGNORE INTO qr_map (token, candidate_id) VALUES (?, ?)`, [token, id]);
 
       // ✅ Full URL with query parameters
-      const queryString = new URLSearchParams({
-        "CandidateName": row.name,
-        "CandidateID": row.candidate_id,
-        "SectorName": row.sector,
-        "QPName": row.job_role,
-        "QPCode": row.qp_code,
-        "Grade": row.grade,
-        "ValidTillDate": row.expiry_date,
-        "Candidate/Applicanttype": "Trainer",
-        "Document": row.document_id || "certificate"
-      }).toString();
+const queryString = new URLSearchParams({
+  CandidateName: row.name,
+  CandidateID: row.candidate_id,
+  SectorName: row.sector,
+  QPName: row.job_role,
+  QPCode: row.qp_code,
+  Grade: row.grade,
+  ValidTillDate: row.expiry_date,
+  ApplicantType: "Trainer",
+  Document: row.document_id || "certificate"
+}).toString();
 
-      const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}?${queryString}`;
+const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}?${queryString}`;
 
       // QR code buffer
       const qrBuffer = await QRCode.toBuffer(verifyUrl, {
