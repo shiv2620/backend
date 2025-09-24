@@ -190,6 +190,15 @@ app.get('/api/verify', async (req, res) => {
   }
 });
 
+app.get('/api/export-all', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM candidates ORDER BY id ASC');
+    res.json({ ok: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ------------------ START SERVER ------------------
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, ()=>console.log('Backend running on port', PORT));
