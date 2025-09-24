@@ -1,0 +1,63 @@
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Verify Certificate - {{candidate_id}}</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="page">
+  <!-- HEADER -->
+  <header class="topbar">
+    <div class="top-links">
+      <a href="#" class="support-link">Technical Support</a>
+      <a href="#" class="login-btn">LOGIN</a>
+      <a href="#" class="register">Register</a>
+    </div>
+    <div class="top-strip">
+      <div class="green"></div>
+      <div class="blue"></div>
+      <div class="red"></div>
+    </div>
+    <div class="top-row">
+      <img src="/assets/banner.png" alt="Skill India Banner" />
+    </div>
+    <div class="navbar">
+      <span>HOME</span>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="container page">
+    <div class="cert-wrap">
+      <div class="cert-card">
+        <div class="cert-logo">
+          <img src="/assets/Blue.png" alt="Certificate Logo" />
+        </div>
+
+        <div class="verified-badge">
+          <div class="text">Certificate Verified</div>
+        </div>
+
+        <div class="cert-data">
+          <div><b>Candidate Name:</b> {{name}}</div>
+          <div><b>Candidate ID:</b> {{candidate_id}}</div>
+          <div><b>Sector Name:</b> {{sector}}</div>
+          <div><b>QP Code:</b> {{qp_code}}</div>
+          <div><b>QP Version:</b> {{qp_version}}</div>
+          <div><b>Job Role:</b> {{job_role}}</div>
+          <div><b>Grade:</b> {{grade}}</div>
+          <div><b>Document ID:</b> {{document_id}}</div>
+          <div><b>Issue Date:</b> {{issue_date}}</div>
+          <div><b>Valid Upto:</b> {{expiry_date}}</div>
+          <div><b>Type:</b> Certificate</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <img src="/assets/footer-full.png" alt="Footer" class="footer-img" />
+  </footer>
+  <div class="bottom-bar"></div>
+</body>
+</html>
