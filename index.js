@@ -1,204 +1,170 @@
-require('dotenv').config(); // dotenv load
-
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const { Pool } = require('pg');
+// generate_static_from_json.js
+const fs = require('fs');
 const path = require('path');
-const QRCode = require('qrcode');
-const PDFDocument = require('pdfkit');
-const crypto = require('crypto');
 
-const app = express();
+// === CONFIG ===
+// Your candidates JSON
+const INPUT = path.resolve(__dirname, 'candidates.json'); 
 
-app.use(cors({
-  origin: [
-    "https://skillindiadigital.org",
-    "https://www.skillindiadigital.org"
-  ],
-  credentials: true
-}));
+// Output folder for HTML pages
+const OUT_DIR = path.resolve(__dirname, 'frontend', 'public', 'verify'); 
 
-app.use(bodyParser.json());
+// Backend URL for static images
+const BACKEND_URL = "https://backend-5mua.onrender.com/static"; // Your Render backend
 
-// ------------------ DATABASE (PostgreSQL) ------------------
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+// === VALIDATION ===
+if (!fs.existsSync(INPUT)) {
+  console.error('Error: candidates.json not found in project root.');
+  process.exit(1);
+}
 
-(async () => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS candidates (
-        id SERIAL PRIMARY KEY,
-        candidate_id TEXT UNIQUE,
-        name TEXT,
-        father_name TEXT,
-        aadhar TEXT,
-        sector TEXT,
-        qp_code TEXT,
-        qp_version TEXT,
-        job_role TEXT,
-        grade TEXT,
-        issue_date TEXT,
-        expiry_date TEXT,
-        document_id TEXT
-      )
-    `);
+const raw = fs.readFileSync(INPUT, 'utf-8');
+let parsed;
+try {
+  parsed = JSON.parse(raw);
+} catch (e) {
+  console.error('Error parsing candidates.json:', e.message);
+  process.exit(1);
+}
 
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS qr_map (
-        id SERIAL PRIMARY KEY,
-        token TEXT UNIQUE,
-        candidate_id TEXT
-      )
-    `);
+const candidates = parsed.data || parsed;
+if (!Array.isArray(candidates) || candidates.length === 0) {
+  console.error('No candidates found in JSON.');
+  process.exit(1);
+}
 
-    console.log("PostgreSQL connected & tables ready!");
-  } catch (err) {
-    console.error("DB init error:", err);
-  }
-})();
+// Ensure output folder exists
+if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
-// ------------------ API ROUTES ------------------
+// === SANITIZE HELPER ===
+function sanitize(s) {
+  if (!s) return '';
+  return String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
-// Add candidate
-app.post('/api/add', async (req, res) => {
-  const p = req.body;
-  const fields = [
-    'candidate_id','name','father_name','aadhar','sector','qp_code',
-    'qp_version','job_role','grade','issue_date','expiry_date','document_id'
-  ];
-  const vals = fields.map(f => p[f] || '');
+// === CSS TO EMBED ===
+const EMBEDDED_CSS = `
+* { box-sizing: border-box; }
+body, html, #root { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #fff; color: #222; }
+.topbar { background: #fff; border-bottom: 1px solid #ddd; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; }
+.top-links { display: flex; justify-content: flex-end; align-items: center; gap: 16px; font-size: 13px; padding: 0 70px; height: 31px; line-height: 36px; border-bottom: 1px solid #ccc; background: #f9f9f9; }
+.top-links a { color: #333; text-decoration: none; font-weight: 500; }
+.top-links a:hover { text-decoration: underline; }
+.support-link { display: flex; align-items: center; gap: 2px; color: #000; font-size: 13px; font-weight: 500; text-decoration: none; }
+.top-links .login-btn { background: #ea7f18; color: #fff; padding: 0px 20px; border-radius: 0px; font-weight: 500; }
+.top-links .register { color: black; }
+.top-strip { height: 3px; width: 100%; display: flex; }
+.top-strip div { flex: 1; height: 100%; }
+.top-strip .green { background: #8bc34a; }
+.top-strip .blue { background: #2196f3; }
+.top-strip .red { background: #f44336; }
+.top-row { width: 100%; display: block; padding: 0; }
+.top-row img { width: 100%; max-width: 100%; height: auto; display: block; }
+.navbar { background: #ea7f18; height: 47px; display: flex; align-items: center; padding: 0 40px; color: #fff; font-weight: 600; font-size: 14px; }
+.page { padding-top: 72px; min-height: calc(100vh - 220px); }
+.cert-wrap { display: flex; justify-content: center; padding: 40px; }
+.cert-card { padding: 24px; text-align: left; }
+.cert-logo { display: flex; justify-content: center; margin-bottom: 5px; }
+.cert-logo img { height: 80px; }
+.verified-badge { display: flex; flex-direction: column; align-items: center; margin-bottom: 3px; }
+.verified-badge .text { margin-top: 8px; color: #1a73e8; font-size: 14px; }
+.cert-data { font-size: 13px; line-height: 2.6; color: #444; }
+.cert-data b { font-weight: 600; }
+.footer { width: 100%; background: #fff; text-align: center; }
+.footer-img { width: 100%; height: auto; display: block; }
+.bottom-bar { height: 25px; background: #000; margin-top: 20px; }
+`;
 
-  try {
-    const placeholders = fields.map((_, i) => `$${i+1}`).join(',');
-    await pool.query(
-      `INSERT INTO candidates (${fields.join(',')}) 
-       VALUES (${placeholders})
-       ON CONFLICT (candidate_id) DO UPDATE SET 
-       ${fields.map(f => `${f}=EXCLUDED.${f}`).join(', ')}
-      `,
-      vals
-    );
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
+// === HTML GENERATOR ===
+function generateHtml(row) {
+  const name = sanitize(row.name || '');
+  const cid = sanitize(row.candidate_id || '');
+  const job = sanitize(row.job_role || '');
+  const qp = sanitize(row.qp_code || '');
+  const grade = sanitize(row.grade || '');
+  const issue = sanitize(row.issue_date || '');
+  const expiry = sanitize(row.expiry_date || '');
+  const documentId = sanitize(row.document_id || '');
 
-// List all candidates
-app.get('/api/list', async (req, res) => {
-  try {
-    const result = await pool.query(`SELECT * FROM candidates ORDER BY id DESC`);
-    res.json({ ok: true, data: result.rows });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Verify — ${cid}</title>
+  <style>${EMBEDDED_CSS}</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="top-links">
+      <a href="#" class="support-link">Technical Support</a>
+      <a href="#" class="login-btn">LOGIN</a>
+      <a href="#" class="register">Register</a>
+    </div>
+    <div class="top-strip">
+      <div class="green"></div>
+      <div class="blue"></div>
+      <div class="red"></div>
+    </div>
+    <div class="top-row">
+      <img src="${BACKEND_URL}/banner.png" alt="Skill India Banner" />
+    </div>
+    <div class="navbar"><span>HOME</span></div>
+  </header>
 
-// Generate PDF with QR
-app.get('/api/generate-pdf/:id', async (req, res) => {
-  const id = req.params.id;
-  try {
-    const result = await pool.query(
-      `SELECT * FROM candidates WHERE candidate_id=$1 LIMIT 1`, 
-      [id]
-    );
-    const row = result.rows[0];
-    if (!row) return res.status(404).json({ error: 'Candidate not found' });
+  <main class="page">
+    <div class="cert-wrap">
+      <div class="cert-card">
+        <div class="cert-logo">
+          <img src="${BACKEND_URL}/Blue.png" alt="Certificate Logo" />
+        </div>
+        <div class="verified-badge">
+          <div class="text">Certificate Verified</div>
+        </div>
+        <div class="cert-data">
+          <div><b>Candidate Name:</b> ${name}</div>
+          <div><b>Candidate ID:</b> ${cid}</div>
+          <div><b>Job Role:</b> ${job}</div>
+          <div><b>QP Code:</b> ${qp}</div>
+          <div><b>Grade:</b> ${grade}</div>
+          ${documentId ? `<div><b>Document ID:</b> ${documentId}</div>` : ''}
+          <div><b>Issue Date:</b> ${issue}</div>
+          <div><b>Valid Upto:</b> ${expiry}</div>
+          <div><b>Type:</b> Certificate</div>
+        </div>
+      </div>
+    </div>
+  </main>
 
-    const token = crypto.randomBytes(8).toString('hex');
-    await pool.query(
-      `INSERT INTO qr_map (token, candidate_id) VALUES ($1, $2)
-       ON CONFLICT (token) DO NOTHING`,
-      [token, id]
-    );
+  <footer class="footer">
+    <img src="${BACKEND_URL}/footer-full.png" alt="Footer" class="footer-img" />
+  </footer>
+  <div class="bottom-bar"></div>
+</body>
+</html>`;
+}
 
-    const queryString = new URLSearchParams({
-      CandidateName: row.name,
-      CandidateID: row.candidate_id,
-      SectorName: row.sector,
-      QPName: row.job_role,
-      QPCode: row.qp_code,
-      Grade: row.grade,
-      ValidTillDate: row.expiry_date,
-      ApplicantType: "Trainer",
-      Document: row.document_id || "certificate"
-    }).toString();
+// === GENERATE PAGES ===
+let count = 0;
+for (const row of candidates) {
+  const id = row.candidate_id || row.id || ('candidate_' + Math.random().toString(36).slice(2,8));
+  const safeId = String(id).trim();
+  if (!safeId) continue;
 
-    const verifyUrl = `https://skillindiadigital.org/verify/${encodeURIComponent(id)}?${queryString}`;
+  const html = generateHtml(row);
 
-    const qrBuffer = await QRCode.toBuffer(verifyUrl, {
-      type: 'png',
-      errorCorrectionLevel: 'Q',
-      width: 400,
-      version: 15,
-      margin: 3,
-      scale: 5
-    });
+  // 1) file: verify/<id>.html
+  const filePath = path.join(OUT_DIR, `${safeId}.html`);
+  fs.writeFileSync(filePath, html, 'utf-8');
 
-    const doc = new PDFDocument({ size:[491,347], margin:0 });
-    res.setHeader('Content-Disposition', `attachment; filename=${row.candidate_id}_certificate.pdf`);
-    res.setHeader('Content-Type','application/pdf');
-    doc.pipe(res);
+  // 2) folder: verify/<id>/index.html
+  const folderPath = path.join(OUT_DIR, safeId);
+  if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+  const indexPath = path.join(folderPath, 'index.html');
+  fs.writeFileSync(indexPath, html, 'utf-8');
 
-    const bgPath = path.resolve(__dirname,'certificate-bg.jpg');
-    doc.image(bgPath,0,0,{width:doc.page.width,height:doc.page.height});
+  count++;
+  console.log(`Generated: ${safeId}.html  and ${safeId}/index.html`);
+}
 
-    doc.font('Times-Bold').fontSize(28).text(row.name,0,20,{align:'center'});
-    doc.font('Times-Roman').fontSize(18).text(`Job Role: ${row.job_role}`,0,80,{align:'center'});
-    doc.fontSize(14).text(`ID: ${row.candidate_id}`,60,300);
-    doc.fontSize(14).text(`Issue: ${row.issue_date}`,260,300);
-    doc.fontSize(14).text(`Valid Upto: ${row.expiry_date}`,260,320);
-    doc.image(qrBuffer,360,200,{width:100,height:100});
-    doc.end();
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Verify API
-app.get('/api/verify', async (req, res) => {
-  const { id, token } = req.query;
-  if (!id && !token) return res.status(400).json({ ok:false, error:'Provide id or token' });
-
-  try {
-    let row;
-    if (id) {
-      const result = await pool.query(
-        `SELECT * FROM candidates WHERE candidate_id=$1 LIMIT 1`, 
-        [id.trim()]
-      );
-      row = result.rows[0];
-    } else {
-      const result = await pool.query(
-        `SELECT c.* FROM qr_map q 
-         JOIN candidates c ON q.candidate_id=c.candidate_id 
-         WHERE q.token=$1 LIMIT 1`,
-        [token.trim()]
-      );
-      row = result.rows[0];
-    }
-
-    if (!row) return res.status(404).json({ ok:false, error:'Candidate not found' });
-    res.json({ ok:true, data: row });
-  } catch (err) {
-    res.status(500).json({ ok:false, error: err.message });
-  }
-});
-
-app.get('/api/export-all', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM candidates ORDER BY id ASC');
-    res.json({ ok: true, data: result.rows });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
-// ------------------ START SERVER ------------------
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, ()=>console.log('Backend running on port', PORT));
+console.log(`\nDone. Generated ${count} candidate pages under:\n  ${OUT_DIR}`);
