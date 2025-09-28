@@ -2,8 +2,6 @@
 const fs = require('fs');
 const path = require('path');
 
-app.use('/static', express.static(path.join(__dirname, 'assets')));
-
 
 // === CONFIG ===
 // Your candidates JSON
