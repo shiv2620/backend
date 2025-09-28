@@ -2,9 +2,17 @@
 const fs = require('fs');
 const path = require('path');
 
-const INPUT = path.resolve(__dirname, 'candidates.json'); // your downloaded JSON
-const OUT_DIR = path.resolve(__dirname, 'frontend', 'public', 'verify'); // adjust if needed
+// === CONFIG ===
+// Your candidates JSON
+const INPUT = path.resolve(__dirname, 'candidates.json'); 
 
+// Output folder for HTML pages
+const OUT_DIR = path.resolve(__dirname, 'frontend', 'public', 'verify'); 
+
+// Hostinger CSS URL
+const HOSTINGER_CSS_URL = 'https://skillindiadigital.org/static/css/main.440362b9.css'; // CHANGE to your domain and CSS filename
+
+// === VALIDATION ===
 if (!fs.existsSync(INPUT)) {
   console.error('Error: candidates.json not found in project root.');
   process.exit(1);
@@ -19,7 +27,7 @@ try {
   process.exit(1);
 }
 
-const candidates = parsed.data || parsed; // handle both {ok,data:[...]} and plain array
+const candidates = parsed.data || parsed;
 if (!Array.isArray(candidates) || candidates.length === 0) {
   console.error('No candidates found in JSON.');
   process.exit(1);
@@ -28,11 +36,13 @@ if (!Array.isArray(candidates) || candidates.length === 0) {
 // Ensure output folder exists
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
+// === SANITIZE HELPER ===
 function sanitize(s) {
   if (!s) return '';
   return String(s).replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// === HTML GENERATOR ===
 function generateHtml(row) {
   const name = sanitize(row.name || '');
   const cid = sanitize(row.candidate_id || '');
@@ -49,35 +59,28 @@ function generateHtml(row) {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Verify — ${cid}</title>
-  <style>
-    body{font-family:Arial,Helvetica,sans-serif;background:#f5f7fb;margin:0;padding:24px}
-    .card{max-width:720px;margin:24px auto;background:#fff;border-radius:8px;padding:24px;box-shadow:0 6px 18px rgba(30,40,50,0.08)}
-    h1{margin:0 0 12px;font-size:20px}
-    .row{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0}
-    .label{width:160px;font-weight:600;color:#333}
-    .value{flex:1;color:#111}
-    .note{margin-top:18px;color:#666;font-size:13px}
-  </style>
+  <link rel="stylesheet" href="${HOSTINGER_CSS_URL}">
 </head>
 <body>
-  <div class="card">
-    <h1>Certificate Verification</h1>
-
-    <div class="row"><div class="label">Name:</div><div class="value">${name}</div></div>
-    <div class="row"><div class="label">Candidate ID:</div><div class="value">${cid}</div></div>
-    <div class="row"><div class="label">Job Role:</div><div class="value">${job}</div></div>
-    <div class="row"><div class="label">QP Code:</div><div class="value">${qp}</div></div>
-    <div class="row"><div class="label">Grade:</div><div class="value">${grade}</div></div>
-    <div class="row"><div class="label">Issue Date:</div><div class="value">${issue}</div></div>
-    <div class="row"><div class="label">Expiry Date:</div><div class="value">${expiry}</div></div>
-
-    ${documentId ? `<p class="note"><b>Document ID:</b> ${documentId}</p>` : ''}
-    <p class="note">This is a static verification page generated for instant access.</p>
+  <div class="cert-wrap">
+    <div class="cert-card">
+      <div class="cert-data">
+        <p><b>Name:</b> ${name}</p>
+        <p><b>Candidate ID:</b> ${cid}</p>
+        <p><b>Job Role:</b> ${job}</p>
+        <p><b>QP Code:</b> ${qp}</p>
+        <p><b>Grade:</b> ${grade}</p>
+        <p><b>Issue Date:</b> ${issue}</p>
+        <p><b>Expiry Date:</b> ${expiry}</p>
+        ${documentId ? `<p><b>Document ID:</b> ${documentId}</p>` : ''}
+      </div>
+    </div>
   </div>
 </body>
 </html>`;
 }
 
+// === GENERATE PAGES ===
 let count = 0;
 for (const row of candidates) {
   const id = row.candidate_id || row.id || ('candidate_' + Math.random().toString(36).slice(2,8));
@@ -90,7 +93,7 @@ for (const row of candidates) {
   const filePath = path.join(OUT_DIR, `${safeId}.html`);
   fs.writeFileSync(filePath, html, 'utf-8');
 
-  // 2) folder: verify/<id>/index.html  (so /verify/<id> works)
+  // 2) folder: verify/<id>/index.html
   const folderPath = path.join(OUT_DIR, safeId);
   if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
   const indexPath = path.join(folderPath, 'index.html');
