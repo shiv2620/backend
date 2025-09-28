@@ -9,9 +9,6 @@ const INPUT = path.resolve(__dirname, 'candidates.json');
 // Output folder for HTML pages
 const OUT_DIR = path.resolve(__dirname, 'frontend', 'public', 'verify'); 
 
-// Backend URL for static images
-const BACKEND_URL = "http://localhost:5000/static"; // Change to your deployed backend URL
-
 // === VALIDATION ===
 if (!fs.existsSync(INPUT)) {
   console.error('Error: candidates.json not found in project root.');
