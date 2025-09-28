@@ -7,6 +7,8 @@ const path = require('path');
 // Your candidates JSON
 const INPUT = path.resolve(__dirname, 'candidates.json'); 
 
+app.use('/static', express.static(path.join(__dirname, 'assets')));
+
 // Output folder for HTML pages
 const OUT_DIR = path.resolve(__dirname, 'frontend', 'public', 'verify'); 
 
